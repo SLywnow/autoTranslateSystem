@@ -11,6 +11,16 @@ namespace AutoLangEditorSLywnow
 
 	public class ALSL_Editor_System : Editor
 	{
+		public static bool enable;
+		public int repeatCount=0;
+
+		public static string folderlink = Application.dataPath + "/SLywnowAssets/AutoLang/Data";
+		public static string folderlinkA = "Assets/SLywnowAssets/AutoLang/Data";
+		public static string folderlanglink = Application.dataPath + "/SLywnowAssets/AutoLang/Data/Langs Files";
+		public static string folderlanglinkA = "Assets/SLywnowAssets/AutoLang/Data/Langs Files";
+		public static string folderreslink = "Assets/SLywnowAssets/AutoLang/Resources";
+		public static ALSL_Perfab perfab;
+
 		public static ALSL_Params options = new ALSL_Params();
 		public static List<string> alllangs = new List<string>();
 		public static List<string> keys_alsl = new List<string>();
@@ -21,6 +31,8 @@ namespace AutoLangEditorSLywnow
 		public static int deflang = 0;
 
 		public static List<ALSL_Language> allwords = new List<ALSL_Language>();
+
+		
 
 		public static List<string> GetStringsByKey(string key)
 		{
@@ -94,7 +106,7 @@ namespace AutoLangEditorSLywnow
 			if (type == TypeOfSave.lang && alllangs.Contains(input))
 			{
 				int a = alllangs.IndexOf(input);
-				FilesSet.DelStream(Application.streamingAssetsPath + "/ALSL/Langs Files", alllangs[a], "json",false,false);
+				FilesSet.DelStream(folderlanglink, alllangs[a], "json",false,false);
 				alllangs.Remove(input);
 				langsvis.RemoveAt(a);
 				if (deflang == a) deflang = 0;
@@ -126,8 +138,8 @@ namespace AutoLangEditorSLywnow
 						if (a < keys_alsl.Count - 1) allwordss[a + 1] += ",";
 					}
 					allwordss.Add("}");
-					FilesSet.DelStream(Application.streamingAssetsPath + "/ALSL/Langs Files", alllangs[alllangs.IndexOf(input)], "json", false, false);
-					FilesSet.SaveStream(Application.streamingAssetsPath + "/ALSL/Langs Files", input2, "json", allwordss.ToArray(), false);
+					FilesSet.DelStream(folderlanglink, alllangs[alllangs.IndexOf(input)], "json", false, false);
+					FilesSet.SaveStream(folderlanglink, input2, "json", allwordss.ToArray(), false);
 				}
 
 				langsvis[alllangs.IndexOf(input)] = input3;
@@ -167,13 +179,51 @@ namespace AutoLangEditorSLywnow
 			}
 		}
 
+		public static void Move(string key, int to)
+		{
+			if (keys_alsl.Contains(key))
+			{
+				int id = keys_alsl.IndexOf(key);
+				if (to >= 0 && to < keys_alsl.Count)
+				{
+					keys_alsl.Move(id, to);
+					for (int i = 0; i < alllangs.Count; i++)
+					{
+						allwords[i].words.Move(id, to);
+					}
+				}
+			}
+		}
+
+		public static void Move(string key, string toKey)
+		{
+			if (keys_alsl.Contains(key))
+			{
+				int id = keys_alsl.IndexOf(key);
+				int to = keys_alsl.IndexOf(toKey);
+
+				/*if (!up)
+					to += 1;
+				*/
+
+				if (to >= 0 && to < keys_alsl.Count)
+				{
+					keys_alsl.Move(id, to);
+					for (int i = 0; i < alllangs.Count; i++)
+					{
+						allwords[i].words.Move(id, to);
+					}
+				}
+			}
+		}
+
 		public static void SaveFiles()
 		{
 			if (alllangs.Count > 0)
 			{
 				for (int i = 0; i < allwords.Count; i++)
 				{
-					List<string> allwordss =new List<string>();
+					List<string> allwordss = new List<string>();
 					allwordss.Add("{");
 					for (int a = 0; a < keys_alsl.Count; a++)
 					{
@@ -183,7 +233,7 @@ namespace AutoLangEditorSLywnow
 						//if (a < keys_alsl.Count-1) allwordss[a+1] += ",";
 					}
 					allwordss.Add("}");
-					FilesSet.SaveStream(Application.streamingAssetsPath + "/ALSL/Langs Files", alllangs[i], "json", allwordss.ToArray(), false);
+					FilesSet.SaveStream(folderlanglink, alllangs[i], "json", allwordss.ToArray(), false);
 				}
 			}
 			ALSL_ToSaveJSON ts = new ALSL_ToSaveJSON();
@@ -196,13 +246,25 @@ namespace AutoLangEditorSLywnow
 			ts.assotiate = assotiate;
 
 			string tosave = JsonUtility.ToJson(ts, true);
-			FilesSet.SaveStream(Application.streamingAssetsPath + "/ALSL", "params", "alsldata", JsonUtility.ToJson(options,true), false);
+			FilesSet.SaveStream(folderlink, "params", "txt", JsonUtility.ToJson(options, true), false);
 
-			FilesSet.SaveStream(Application.streamingAssetsPath + "/ALSL", "keys", "alsldata", new string[1] { tosave }, false);
-			AssetDatabase.ImportAsset("Asset/StreamingAssets/ALSL/keys.alsldata", ImportAssetOptions.ForceUpdate);
-			AssetDatabase.ImportAsset("Asset/StreamingAssets/ALSL/params.alsldata", ImportAssetOptions.ForceUpdate);
-			for (int i=0;i<alllangs.Count;i++)
-				AssetDatabase.ImportAsset("Asset/StreamingAssets/ALSL/Langs Files/", ImportAssetOptions.ImportRecursive);
+			FilesSet.SaveStream(folderlink, "keys", "txt", new string[1] { tosave }, false);
+			AssetDatabase.ImportAsset(folderlinkA + "/keys.txt", ImportAssetOptions.ForceUpdate);
+			AssetDatabase.ImportAsset(folderlinkA + "/params.txt", ImportAssetOptions.ForceUpdate);
+			for (int i = 0; i < alllangs.Count; i++)
+				AssetDatabase.ImportAsset(folderlanglinkA + "/" + alllangs[i] + ".json", ImportAssetOptions.ImportRecursive);
+
+			perfab.langFiles = new List<ALSL_Perfab_Lang>();
+
+			for (int i = 0; i < alllangs.Count; i++)
+			{
+				if (FilesSet.CheckFile(folderlanglink, alllangs[i], "json", false))
+				{
+					perfab.langFiles.Add(new ALSL_Perfab_Lang());
+					perfab.langFiles[perfab.langFiles.Count - 1].name = alllangs[i];
+					perfab.langFiles[perfab.langFiles.Count - 1].asset = AssetDatabase.LoadAssetAtPath(folderlanglinkA + "/" + alllangs[i] + ".json", typeof(TextAsset)) as TextAsset;
+				}
+			}
 		}
 	}
 
@@ -220,7 +282,6 @@ namespace AutoLangEditorSLywnow
 
 	public class ALSL_Params
 	{
-		public string langpath = "#dp/ALSLLang";
 		public int verison = 1;
 		public int LangFromSystem = 0;
 		public string output = "#sf/Games/#project/CustomTranslate";

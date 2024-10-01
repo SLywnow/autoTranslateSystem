@@ -8,6 +8,7 @@ namespace AutoLangSLywnow
 {
 	public class ALSL_Main : MonoBehaviour
 	{
+		public static ALSL_Perfab perfab;
 		public static List<string> alllangs = new List<string>();
 		public static List<string> keys_alsl = new List<string>();
 		public static List<string> current_alsl = new List<string>();
@@ -53,7 +54,16 @@ namespace AutoLangSLywnow
 
 		public static void SetReplaceWord(string key, string NewWord)
 		{
-			if (keysR_alsl.Contains(key)) repickR_alsl[keysR_alsl.IndexOf(key)] = NewWord;
+			if (!string.IsNullOrEmpty(key))
+			{
+				if (keysR_alsl.Contains(key))
+					repickR_alsl[keysR_alsl.IndexOf(key)] = NewWord;
+				else
+				{
+					keysR_alsl.Add(key);
+					repickR_alsl.Add(NewWord);
+				}
+			}
 		}
 
 		public static string GetReplaceFromKey(string key)
@@ -141,8 +151,8 @@ namespace AutoLangSLywnow
 
 		public static string GetWord(string key)
 		{
-			string ret=null;
-			if (keys_alsl.Contains(key)) ret = current_alsl[keys_alsl.IndexOf(key)];
+			string ret = null;
+			if (keys_alsl.Contains(key) && current_alsl.Count > keys_alsl.IndexOf(key)) ret = current_alsl[keys_alsl.IndexOf(key)];
 			return ret;
 		}
 
@@ -158,7 +168,6 @@ namespace AutoLangSLywnow
 
 		public static void AddLanguageFromPath(string path, string filename, bool force=false)
 		{
-			
 			if (alllangs.Contains(filename) && !force) { Debug.Log("Language with this name is already exist"); return; }
 			try
 			{

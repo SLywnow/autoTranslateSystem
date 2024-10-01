@@ -7,19 +7,22 @@ using UnityEngine.Events;
 using SLywnow;
 
 [RequireComponent(typeof(Dropdown))]
-public class ALSLDropDown : MonoBehaviour {
+public class ALSLSelectTranslate : MonoBehaviour {
 
 	public bool UpdateLanguages;
 	public bool UpdateWithoutRestart = true;
 
+	public UnityEvent onUpdateLanguage;
+
 	bool upds;
+	bool inUpdate;
 
 	static Dropdown dropdw;
 
 	void Start () {
 		dropdw = GetComponent<Dropdown>();
-		dropdw.onValueChanged.AddListener(delegate { ValueCh(); });
 		UpdLg();
+		dropdw.onValueChanged.AddListener((int i) => ValueCh());
 	}
 	void Update () {
 		if (upds==ALSL_Main.forseupdateall)
@@ -34,6 +37,7 @@ public class ALSLDropDown : MonoBehaviour {
 
 	public void UpdLg()
 	{
+		inUpdate = true;
 		dropdw.ClearOptions();
 		List<Dropdown.OptionData> dp = new List<Dropdown.OptionData>();
 		for (int i=0;i<ALSL_Main.alllangs.Count;i++)
@@ -43,25 +47,29 @@ public class ALSLDropDown : MonoBehaviour {
 		}
 		dropdw.AddOptions(dp);
 		dropdw.value = ALSL_Main.currentlang;
+		inUpdate = false;
 	}
 
 	public void ValueCh()
 	{
-		int ss = SaveSystemAlt.IsIndex();
-		SaveSystemAlt.StopWorkAndClose();
-		SaveSystemAlt.StartWork(StartingSLAL.SSALevel);
-
-		if (UpdateWithoutRestart)
+		if (!inUpdate)
 		{
-			ALSL_Main.SetLanguage(ALSL_Main.alllangs[dropdw.value]);
-			ALSL_Main.currentlang = dropdw.value;
-		}
-		else
-		{
+			int ss = SaveSystemAlt.IsIndex();
+			SaveSystemAlt.StopWorkAndClose();
+			SaveSystemAlt.StartWork(StartingSLAL.SSALevel);
 			SaveSystemAlt.SetInt("currentlang", dropdw.value);
-		}
+			SaveSystemAlt.StopWorkAndClose();
+			SaveSystemAlt.StartWork(ss);
 
-		SaveSystemAlt.StopWorkAndClose();
-		SaveSystemAlt.StartWork(ss);
+			//Debug.Log("ok");
+
+			if (UpdateWithoutRestart)
+			{
+				ALSL_Main.SetLanguage(ALSL_Main.alllangs[dropdw.value]);
+				ALSL_Main.currentlang = dropdw.value;
+			}
+
+			onUpdateLanguage.Invoke();
+		}
 	}
 }

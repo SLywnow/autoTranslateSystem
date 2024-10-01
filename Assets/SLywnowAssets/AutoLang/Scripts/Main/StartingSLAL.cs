@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using SLywnow;
+using UnityEngine.UI;
 //using SimpleJSON;
 
 namespace AutoLangSLywnow
@@ -18,79 +19,47 @@ namespace AutoLangSLywnow
 			OnRuntimeMethodLoad();
 		}
 
-		[RuntimeInitializeOnLoadMethod (RuntimeInitializeLoadType.BeforeSceneLoad)]
+		[RuntimeInitializeOnLoadMethod (RuntimeInitializeLoadType.AfterAssembliesLoaded)]
 		static void OnRuntimeMethodLoad()
 		{
-			//FilesSet.SaveStream(Application.streamingAssetsPath + "/ALSL", "keys", "alsldata", JsonUtility.ToJson(keys), false);
+
+			ALSL_Main.perfab = (Resources.Load("alsl_perfab", typeof(GameObject)) as GameObject).GetComponent<ALSL_Perfab>();
+
 			SaveSystemAlt.StartWork(SSALevel);
-			BetterStreamingAssets.Initialize();
 			//SaveSystemAlt.DeleteKey("LangPath");
 			FirstParamALSL fp = new FirstParamALSL();
-			fp = JsonUtility.FromJson<FirstParamALSL>(LoadStreamSAP("ALSL", "params", "alsldata", false, false));
+			fp = JsonUtility.FromJson<FirstParamALSL>(ALSL_Main.perfab.options.text);
 #if UNITY_EDITOR
 			editor = true;
-			fp.langpath = fp.langpath.Replace("#dp", Application.persistentDataPath);
-			//Debug.Log(fp.langpath);
-
-			SaveSystemAlt.SetString("LangPath", fp.langpath);
 #endif
-
-			if (SaveSystemAlt.GetInt("versionT") < fp.verison) { SaveSystemAlt.SetInt("versionT", fp.verison); editor = true; }
-			if (!SaveSystemAlt.HasKey("LangPath") || editor)
+			if (SaveSystemAlt.GetInt("versionT") < fp.verison)
 			{
-				fp.langpath = fp.langpath.Replace("#dp", Application.persistentDataPath);
-				//Debug.Log(fp.langpath);
-
-				SaveSystemAlt.SetString("LangPath", fp.langpath);
-				SaveSystemAlt.SetInt("LangFromSystem",fp.LangFromSystem);
+				SaveSystemAlt.SetInt("versionT", fp.verison);
+				editor = true;
 			}
 
-			if (!SaveSystemAlt.HasKey("OutPutFiles") || editor)
+			if (!SaveSystemAlt.HasKey("OutPutFiles") || SaveSystemAlt.GetString("OutPutFiles", "") != fp.output || editor)
 			{
 				if (string.IsNullOrEmpty(fp.output)) SaveSystemAlt.SetString("OutPutFiles", null);
 				else
 				{
 					fp.output = fp.output.Replace("#sf", FastFind.GetDefaultPath());
+					fp.output = fp.output.Replace("#appdata", Application.persistentDataPath);
+					fp.output = fp.output.Replace("#app", Application.dataPath);
 					fp.output = fp.output.Replace("#project", Application.productName);
 					SaveSystemAlt.SetString("OutPutFiles", fp.output);
 				}
 			}
 
-			string path = SaveSystemAlt.GetString("LangPath");
-			if (FilesSet.CheckFile(path, "keys", "alsldata", false) && !editor)
-			{
-				keys = new ALSL_ToSaveJSON();
-				keys = JsonUtility.FromJson<ALSL_ToSaveJSON>(FilesSet.LoadStream(path, "keys", "alsldata", false, false));
+			SaveSystemAlt.SaveUpdatesNotClose();
 
-				SetUp(path);
-			}
-			else
-			{
-				FilesSet.SaveStream(path, "keys", "alsldata", LoadStreamSAP("ALSL", "keys", "alsldata", false), false);
-
-				keys = JsonUtility.FromJson<ALSL_ToSaveJSON>(FilesSet.LoadStream(path, "keys", "alsldata", false, false));
-				for (int i=0;i<keys.alllangs.Count;i++)
-					FilesSet.SaveStream(path+ "/Langs Files", keys.alllangs[i], "json", LoadStreamSAP("ALSL/Langs Files", keys.alllangs[i], "json", false), false);
-
-				SetUp(path);
-			}
+			keys = JsonUtility.FromJson<ALSL_ToSaveJSON>(ALSL_Main.perfab.keys.text);
+			SetUp();
 
 			SaveSystemAlt.SaveUpdatesNotClose();
 		}
 
-		static string LoadStreamSAP(string path, string name, string razr, bool hz, bool onlyoneline)
-		{
-			return System.Text.Encoding.UTF8.GetString(BetterStreamingAssets.ReadAllBytes(path+"/"+name+"."+razr));
-		}
-
-		static string[] LoadStreamSAP(string path, string name, string razr, bool hz)
-		{
-			string[] ret=new string[1];
-			ret[0] = System.Text.Encoding.UTF8.GetString(BetterStreamingAssets.ReadAllBytes(path + "/" + name + "." + razr));
-			return ret;
-		}
-
-		static void SetUp(string path)
+		static void SetUp()
 		{
 			ALSL_Main.alllangs = keys.alllangs;
 			ALSL_Main.keysR_alsl = keys.keysR_alsl;
@@ -120,20 +89,13 @@ namespace AutoLangSLywnow
 				SaveSystemAlt.SetInt("currentlang", ALSL_Main.currentlang);
 			}
 
+			//inbuild langs
 			ALSL_Main.allwords = new List<ALSL_Language>();
 			for (int i = 0; i < ALSL_Main.alllangs.Count; i++)
 			{
 				ALSL_Main.allwords.Add(new ALSL_Language());
-				/*string json = FilesSet.LoadStream(path + "/Langs Files", ALSL_Main.alllangs[i], "json", false, false);
-				var R = JSON.Parse(json);
-				for (int a = 0; a < ALSL_Main.keys_alsl.Count; a++)
-				{
-					if (!string.IsNullOrEmpty(R[ALSL_Main.keys_alsl[a]].Value))
-						ALSL_Main.allwords[i].words.Add(R[ALSL_Main.keys_alsl[a]].Value.Replace("▬", "\n"));
-					else
-						ALSL_Main.allwords[i].words.Add(R[ALSL_Main.keys_alsl[a]].Value);
-				}*/
-				string[] json = FilesSet.LoadStream(path + "/Langs Files", ALSL_Main.alllangs[i], "json", false);
+
+				string[] json = ALSL_Main.perfab.langFiles.Find(f => f.name == ALSL_Main.alllangs[i]).asset.text.Split('\n');
 				for (int a = 0; a < ALSL_Main.keys_alsl.Count; a++)
 				{
 					string getword = json[a + 1].Replace("\"" + ALSL_Main.keys_alsl[a] + "\": \"", "");
@@ -145,94 +107,106 @@ namespace AutoLangSLywnow
 				}
 			}
 
+			ALSL_Main.languagebydefault = ALSL_Main.alllangs.Count;
+
+			//custom langs
 			if (!string.IsNullOrEmpty(SaveSystemAlt.GetString("OutPutFiles")))
 			{
 				if (!FilesSet.CheckDirectory(SaveSystemAlt.GetString("OutPutFiles"))) FilesSet.CreateDirectory(SaveSystemAlt.GetString("OutPutFiles"));
 
-				string[] names = FilesSet.GetFilesFromdirectories(SaveSystemAlt.GetString("OutPutFiles"), "LangJson",false,FilesSet.TypeOfGet.NamesOfFiles);
+				string[] names = FilesSet.GetFilesFromdirectories(SaveSystemAlt.GetString("OutPutFiles"), "langjson",false,FilesSet.TypeOfGet.NamesOfFiles);
 				if (names != null && names.Length > 0)
 				{
 					for (int i = 0; i < names.Length; i++)
 					{
-						if (names[i] != "Example")
+						if (names[i] != "example")
 						{
 							try
 							{
-								ALSL_Language outlang = new ALSL_Language();
-
-								/*string json = FilesSet.LoadStream(SaveSystemAlt.GetString("OutPutFiles"), names[i], "LangJson", false, false);
-								var R = JSON.Parse(json);
-								for (int a = 0; a < ALSL_Main.keys_alsl.Count; a++)
-								{
-									if (!string.IsNullOrEmpty(R[ALSL_Main.keys_alsl[a]].Value))
-										outlang.words.Add(R[ALSL_Main.keys_alsl[a]].Value.Replace("#nl", "\n"));
-									else
-										outlang.words.Add(R[ALSL_Main.keys_alsl[a]].Value);
-								}*/
-								string[] json = FilesSet.LoadStream(SaveSystemAlt.GetString("OutPutFiles"), names[i], "LangJson", false);
-								for (int a = 0; a < ALSL_Main.keys_alsl.Count; a++)
-								{
-									string getword = json[a + 1].Replace("\"" + ALSL_Main.keys_alsl[a] + "\": \"", "");
-									getword = getword.Replace("\"", "");
-									if (!string.IsNullOrEmpty(getword))
-										outlang.words.Add(getword.Replace("▬", "\n"));
-									else
-										outlang.words.Add(getword);
-								}
-
-								if (outlang.words.Count == ALSL_Main.keys_alsl.Count)
-								{
-
-									ALSL_Main.allwords.Add(outlang);
-									ALSL_Main.alllangs.Add(names[i]);
-									ALSL_Main.isoutput.Add(true);
-									ALSL_Main.assotiate.Add("none");
-									ALSL_Main.langsvis.Add(names[i]);
-								} else
-									Debug.LogError("Failed to load " + names[i]);
+								addCustomLang(JsonUtility.FromJson<ALSL_CustomLangJSON>(FilesSet.LoadStream(SaveSystemAlt.GetString("OutPutFiles"), names[i], "langjson", false, false)), names[i]);
 							}
-							catch
+							catch (System.Exception ex)
 							{
-								Debug.LogError("Failed to load " + names[i]);
+								Debug.LogError("Failed to load " + names[i] + " error: " + ex.ToString());
 							}
 						}
 					}
-				} else
+				}
+				else
 				{
-					string[] tocopy = FilesSet.LoadStream(path + "/Langs Files", ALSL_Main.alllangs[keys.deflang], "json", false);
-
-					for (int i = 0; i < tocopy.Length; i++) tocopy[i] = tocopy[i].Replace("▬", "#nl"); 
-					FilesSet.SaveStream(SaveSystemAlt.GetString("OutPutFiles"), "Example", "LangJson",
-						tocopy,
-						false, false);
+					try
+					{
+						GenerateExample();
+					}
+					catch (System.Exception ex)
+					{
+						Debug.LogError(ex);
+					}
 				}
 
 				if (editor)
 				{
-					string[] tocopy = FilesSet.LoadStream(path + "/Langs Files", ALSL_Main.alllangs[keys.deflang], "json", false);
-
-					for (int i = 0; i < tocopy.Length; i++) tocopy[i] = tocopy[i].Replace("▬", "#nl");
-					FilesSet.SaveStream(SaveSystemAlt.GetString("OutPutFiles"), "Example", "LangJson",
-						tocopy,
-						false, false);
+					GenerateExample();
 				}
 			}
 
-			ALSL_Main.languagebydefault = ALSL_Main.alllangs.Count;
-			ALSL_Main.SetLanguage(ALSL_Main.alllangs[ALSL_Main.currentlang]); 
+			if (ALSL_Main.currentlang < ALSL_Main.alllangs.Count)
+				ALSL_Main.SetLanguage(ALSL_Main.alllangs[ALSL_Main.currentlang]);
+			else
+				ALSL_Main.SetLanguage(ALSL_Main.alllangs[ALSL_Main.deflang]);
+		}
 
+		public static void GenerateExample()
+		{
+			ALSL_CustomLangJSON file = new ALSL_CustomLangJSON();
+			file.lines = new List<ALSL_CustomLangLine>();
+			file.displayName = "Example";
+
+			for (int i =0;i < ALSL_Main.keys_alsl.Count;i++)
+			{
+				file.lines.Add(new ALSL_CustomLangLine());
+				file.lines[file.lines.Count - 1].key = ALSL_Main.keys_alsl[i];
+				file.lines[file.lines.Count - 1].text = ALSL_Main.allwords[ALSL_Main.deflang].words[i].Replace("\r", "");
+			}
+
+			FilesSet.SaveStream(SaveSystemAlt.GetString("OutPutFiles"), "example", "langjson", JsonUtility.ToJson(file, true), false, false);
+		}
+
+		public static void addCustomLang(ALSL_CustomLangJSON file, string name)
+		{
+			string langvis = file.displayName;
+
+			ALSL_Language outlang = new ALSL_Language();
+			outlang.words = new List<string>();
+
+			for (int i = 0; i < ALSL_Main.keys_alsl.Count; i++)
+				outlang.words.Add(ALSL_Main.allwords[ALSL_Main.deflang].words[i].Replace("\r", ""));
+
+			foreach (ALSL_CustomLangLine l in file.lines)
+			{
+				int id = ALSL_Main.keys_alsl.IndexOf(l.key);
+				if (id >= 0)
+					outlang.words[id] = l.text;
+			}
+
+			ALSL_Main.allwords.Add(outlang);
+			ALSL_Main.alllangs.Add(name);
+			ALSL_Main.isoutput.Add(true);
+			ALSL_Main.assotiate.Add("none");
+			ALSL_Main.langsvis.Add(langvis);
 		}
 
 	}
 
+	[System.Serializable]
 	public class FirstParamALSL
 	{
-		public string langpath = "";
 		public int verison = 0;
 		public int LangFromSystem = 0;
 		public string output = "";
 	}
 
+	[System.Serializable]
 	public class ALSL_ToSaveJSON
 	{
 		public List<string> alllangs = new List<string>();
@@ -242,5 +216,19 @@ namespace AutoLangSLywnow
 		public List<string> langsvis = new List<string>();
 		public List<string> assotiate = new List<string>();
 		public int deflang = 0;
+	}
+
+	[System.Serializable]
+	public class ALSL_CustomLangJSON
+	{
+		public string displayName;
+		public List<ALSL_CustomLangLine> lines;
+	}
+
+	[System.Serializable]
+	public class ALSL_CustomLangLine
+	{
+		public string key;
+		public string text;
 	}
 }

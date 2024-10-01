@@ -42,7 +42,7 @@ public class ALSL_IconShow
 				if (g.GetComponent<ALSLText>() != null)
 					markedObjectsText.Add(g.GetInstanceID());
 
-				if (g.GetComponent<ALSLDropDown>() != null)
+				if (g.GetComponent<ALSLSelectTranslate>() != null)
 					markedObjectsDwopdown.Add(g.GetInstanceID());
 
 				if (g.GetComponent<ALSLAutoDropDown>() != null)
